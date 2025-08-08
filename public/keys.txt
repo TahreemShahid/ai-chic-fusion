@@ -1,0 +1,11 @@
+# AI API Keys Configuration
+# Add your API keys below in the format: PROVIDER_NAME=your_api_key_here
+# Uncomment and replace with your actual API keys
+
+# OPENAI_API_KEY=sk-your-openai-key-here
+# ANTHROPIC_API_KEY=your-anthropic-key-here
+# COHERE_API_KEY=your-cohere-key-here
+# GOOGLE_API_KEY=your-google-key-here
+
+# Example:
+# OPENAI_API_KEY=sk-1234567890abcdef...

@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Bot, User, FileText, Settings } from 'lucide-react';
+import { Send, Paperclip, Bot, User, FileText, Settings, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ApiKeyManager } from '@/components/ApiKeyManager';
 import { useToast } from '@/hooks/use-toast';
+import { KeyManager } from '@/utils/keyManager';
 
 interface Message {
   id: string;
@@ -29,9 +29,27 @@ export function ChatInterface() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [keysLoaded, setKeysLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Load keys on component mount
+    KeyManager.loadKeys()
+      .then(() => {
+        setKeysLoaded(true);
+        console.log('Keys loaded successfully');
+      })
+      .catch((error) => {
+        console.error('Failed to load keys:', error);
+        toast({
+          title: "Configuration Error",
+          description: "Could not load keys.txt file. Please check if it exists and has valid API keys.",
+          variant: "destructive"
+        });
+      });
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,12 +60,11 @@ export function ChatInterface() {
   }, [messages]);
 
   const callAIAPI = async (message: string): Promise<string> => {
-    // Get API key from the global function set by ApiKeyManager
-    const getApiKey = (window as any).getApiKey;
-    const openaiKey = getApiKey ? getApiKey('OpenAI') : null;
+    // Get API key from keys.txt file
+    const openaiKey = await KeyManager.getOpenAIKey();
     
     if (!openaiKey) {
-      throw new Error('No OpenAI API key found. Please add one in the settings.');
+      throw new Error('No OpenAI API key found in keys.txt. Please add OPENAI_API_KEY to your keys.txt file.');
     }
 
     try {
@@ -163,6 +180,43 @@ export function ChatInterface() {
     }
   };
 
+  const KeysStatusCard = () => {
+    const [loadedKeys, setLoadedKeys] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+      if (keysLoaded) {
+        setLoadedKeys(KeyManager.getAllLoadedKeys());
+      }
+    }, [keysLoaded]);
+
+    return (
+      <Card className="chat-container p-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Key className="w-5 h-5 text-ai-primary" />
+          <h3 className="font-semibold">API Keys Status</h3>
+        </div>
+        <div className="space-y-2 text-sm">
+          {Object.keys(loadedKeys).length > 0 ? (
+            Object.keys(loadedKeys).map(key => (
+              <div key={key} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>{key}: ••••••••</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <span>No API keys loaded from keys.txt</span>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Keys are loaded from <code>public/keys.txt</code> file
+        </p>
+      </Card>
+    );
+  };
+
   if (showSettings) {
     return (
       <div className="min-h-screen p-4">
@@ -177,7 +231,7 @@ export function ChatInterface() {
             </Button>
             <ThemeToggle />
           </div>
-          <ApiKeyManager />
+          <KeysStatusCard />
         </div>
       </div>
     );
